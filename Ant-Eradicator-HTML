@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomous Ant Eradication Robot: Interactive Plan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: "Tech Neutral" -->
+    <!-- Application Structure Plan: A thematic dashboard structure is used over a linear report replication. The sticky top navigation (Overview, The Robot, The Mothership, Project Plan, Feasibility) allows non-linear exploration. The 'Robot' and 'Mothership' sections feature interactive diagrams built with HTML/CSS, where users can click components to see details in a modal, making technical information more digestible. The 'Project Plan' section features an interactive timeline and dynamic cost breakdown charts. This structure transforms the dense report into an engaging, explorable application, enhancing user understanding by allowing them to focus on specific areas of interest. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Key Metrics (Cost/Time) -> Goal: Inform -> Viz: Stat Cards (HTML/CSS) -> Interaction: None -> Justification: Immediate high-level context.
+        - Report Info: System Components (Robot/Mothership) -> Goal: Organize/Inform -> Viz: Interactive Diagrams (HTML/CSS) -> Interaction: Click component to show a modal with details -> Justification: Visually maps system architecture, more engaging than lists.
+        - Report Info: Development Timeline -> Goal: Show Process -> Viz: Gantt-style Bar Chart (Chart.js) -> Interaction: Hover for details -> Justification: Intuitive way to show a project timeline.
+        - Report Info: Cost Analysis -> Goal: Compare/Inform -> Viz: Doughnut Charts (Chart.js) -> Interaction: Toggle button to switch between Prototype/Unit cost -> Justification: Excellent for proportional breakdowns; toggle saves space.
+        - Report Info: Feasibility/Recommendations -> Goal: Summarize -> Viz: Accordion Sections (HTML/JS) -> Interaction: Click to expand -> Justification: Neatly organizes large blocks of text.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+            color: #1e293b; /* slate-800 */
+        }
+        .nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link.active, .nav-link:hover {
+            color: #3b82f6; /* blue-500 */
+            border-bottom-color: #3b82f6;
+        }
+        .stat-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+        }
+        .chart-container {
+            position: relative;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .interactive-diagram-item {
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+        .interactive-diagram-item:hover {
+            transform: scale(1.05);
+            background-color: #dbeafe; /* blue-100 */
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            max-width: 90%;
+            width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.95);
+            transition: transform 0.3s;
+        }
+        .modal-overlay.visible .modal-content {
+            transform: scale(1);
+        }
+    </style>
+</head>
+<body class="bg-slate-50">
+
+    <header class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-40">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-slate-800">AntBot Project</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#overview" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600">Overview</a>
+                        <a href="#robot" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600">The Robot</a>
+                        <a href="#mothership" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600">The Mothership</a>
+                        <a href="#plan" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600">Project Plan</a>
+                        <a href="#feasibility" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600">Feasibility</a>
+                    </div>
+                </div>
+                <div class="md:hidden">
+                    <select id="mobile-nav" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <option value="#overview">Overview</option>
+                        <option value="#robot">The Robot</option>
+                        <option value="#mothership">The Mothership</option>
+                        <option value="#plan">Project Plan</option>
+                        <option value="#feasibility">Feasibility</option>
+                    </select>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+
+        <section id="overview" class="mb-16 scroll-mt-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 mb-4">Autonomous Ant Eradication Robot</h2>
+                <p class="max-w-3xl mx-auto text-lg text-slate-600">An interactive exploration of a novel solution for targeted pest management, leveraging a COTS-based robotic platform for a fully automated, three-pronged eradication strategy.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 text-center">
+                <div class="stat-card">
+                    <h3 class="text-lg font-semibold text-slate-500 mb-2">Est. Prototype Cost</h3>
+                    <p class="text-4xl font-bold text-blue-600">$10k - $25k</p>
+                    <p class="text-sm text-slate-500 mt-2">(Excludes fully-costed labor)</p>
+                </div>
+                <div class="stat-card">
+                    <h3 class="text-lg font-semibold text-slate-500 mb-2">Est. Development Time</h3>
+                    <p class="text-4xl font-bold text-blue-600">12-18</p>
+                    <p class="text-sm text-slate-500 mt-2">Months to functional prototype</p>
+                </div>
+                <div class="stat-card">
+                    <h3 class="text-lg font-semibold text-slate-500 mb-2">Est. Unit Production Cost</h3>
+                    <p class="text-4xl font-bold text-blue-600">$2.5k - $5k</p>
+                    <p class="text-sm text-slate-500 mt-2">(Per robot, small batch)</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="robot" class="mb-16 scroll-mt-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 mb-4">The Robot: System Architecture</h2>
+                <p class="max-w-3xl mx-auto text-lg text-slate-600">The robot is a complex integration of commercial off-the-shelf (COTS) parts and custom-fabricated components. This section provides an interactive breakdown of its core systems. Click on any component block below to learn more about its function, sourcing, and integration challenges.</p>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center font-medium">
+                    <div class="md:col-span-3 bg-slate-200 p-3 rounded-lg text-slate-700">Control & Vision Systems</div>
+                    <div data-id="pi" class="interactive-diagram-item bg-blue-50 border border-blue-200 p-4 rounded-lg text-blue-800">Raspberry Pi Core</div>
+                    <div data-id="opencv" class="interactive-diagram-item bg-blue-50 border border-blue-200 p-4 rounded-lg text-blue-800">OpenCV Vision</div>
+                    <div data-id="sensors" class="interactive-diagram-item bg-blue-50 border border-blue-200 p-4 rounded-lg text-blue-800">Electro-Optical Sensors</div>
+
+                    <div class="md:col-span-3 bg-slate-200 p-3 rounded-lg text-slate-700 mt-6">Chassis & Mobility</div>
+                    <div data-id="chassis" class="interactive-diagram-item bg-green-50 border border-green-200 p-4 rounded-lg text-green-800">Expanded Traxxas Frame</div>
+                    <div data-id="motors" class="interactive-diagram-item bg-green-50 border border-green-200 p-4 rounded-lg text-green-800">Motors & ESC</div>
+                    <div data-id="power" class="interactive-diagram-item bg-green-50 border border-green-200 p-4 rounded-lg text-green-800">Onboard Power System</div>
+                    
+                    <div class="md:col-span-3 bg-slate-200 p-3 rounded-lg text-slate-700 mt-6">Eradication Payloads</div>
+                    <div data-id="bait" class="interactive-diagram-item bg-red-50 border border-red-200 p-4 rounded-lg text-red-800">Killer Bait Dispenser</div>
+                    <div data-id="repellent" class="interactive-diagram-item bg-red-50 border border-red-200 p-4 rounded-lg text-red-800">Repellent Sprayer</div>
+                    <div data-id="salt" class="interactive-diagram-item bg-red-50 border border-red-200 p-4 rounded-lg text-red-800">Salt Gun Deterrent</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="mothership" class="mb-16 scroll-mt-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 mb-4">The Mothership: Autonomous Support</h2>
+                 <p class="max-w-3xl mx-auto text-lg text-slate-600">The mothership is the mobile base of operations, enabling true autonomy by handling deployment, recharging, and refilling. It's built on a towable utility trailer. Click on the subsystems below for an overview of their function and design.</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-center font-medium">
+                     <div data-id="deployment" class="interactive-diagram-item bg-purple-50 border border-purple-200 p-4 rounded-lg text-purple-800 h-full flex items-center justify-center">Deployment/Retrieval System</div>
+                     <div data-id="recharge" class="interactive-diagram-item bg-purple-50 border border-purple-200 p-4 rounded-lg text-purple-800 h-full flex items-center justify-center">Automated Recharging</div>
+                     <div data-id="refill_granular" class="interactive-diagram-item bg-purple-50 border border-purple-200 p-4 rounded-lg text-purple-800 h-full flex items-center justify-center">Salt & Bait Hoppers</div>
+                     <div data-id="refill_liquid" class="interactive-diagram-item bg-purple-50 border border-purple-200 p-4 rounded-lg text-purple-800 h-full flex items-center justify-center">Repellent Reservoir</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="plan" class="mb-16 scroll-mt-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 mb-4">Project Plan</h2>
+                <p class="max-w-3xl mx-auto text-lg text-slate-600">The project is structured into three distinct phases, with a total estimated duration of 12-18 months. Below are the interactive cost breakdowns and the development timeline.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="flex flex-col">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4 text-center">Cost Breakdown Analysis</h3>
+                    <div class="flex justify-center mb-4">
+                        <div class="inline-flex rounded-md shadow-sm">
+                            <button id="proto-cost-btn" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-l-lg hover:bg-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-500">Prototype Cost</button>
+                            <button id="unit-cost-btn" class="px-4 py-2 text-sm font-medium text-blue-600 bg-white border-t border-b border-blue-600 hover:bg-blue-50 focus:z-10 focus:ring-2 focus:ring-blue-500">Unit Cost</button>
+                        </div>
+                    </div>
+                    <div class="chart-container flex-grow h-80 md:h-96 w-full max-w-md mx-auto">
+                        <canvas id="costChart"></canvas>
+                    </div>
+                    <p id="cost-desc" class="text-center text-sm text-slate-500 mt-4"></p>
+                </div>
+                <div>
+                     <h3 class="text-xl font-bold text-slate-800 mb-4 text-center">Development Timeline</h3>
+                    <div class="chart-container h-96 md:h-[28rem] w-full">
+                        <canvas id="timelineChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="feasibility" class="scroll-mt-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 mb-4">Feasibility & Recommendations</h2>
+                 <p class="max-w-3xl mx-auto text-lg text-slate-600">The project is technically feasible but presents significant engineering challenges. This section summarizes the feasibility assessment and key recommendations for successful development. Click each category to expand.</p>
+            </div>
+
+            <div class="space-y-4 max-w-4xl mx-auto">
+                <div class="accordion-item bg-white rounded-lg shadow">
+                    <button class="accordion-header w-full flex justify-between items-center p-5 text-left font-semibold text-slate-800">
+                        <span>Technical Feasibility</span>
+                        <span class="accordion-icon transform transition-transform duration-300">&#9662;</span>
+                    </button>
+                    <div class="accordion-content max-h-0 overflow-hidden transition-all duration-500 ease-in-out">
+                        <div class="p-5 border-t border-slate-200">
+                            <p class="text-slate-600">The project is largely feasible by leveraging COTS components. Key challenges include real-time ant detection with OpenCV on a Raspberry Pi, which requires significant algorithm optimization and possibly NPU acceleration. The custom frame expansion and dispenser integration are achievable but require careful engineering to maintain stability and reliability. Automated docking and refilling are proven in other robotics fields and can be adapted here.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-item bg-white rounded-lg shadow">
+                    <button class="accordion-header w-full flex justify-between items-center p-5 text-left font-semibold text-slate-800">
+                        <span>Operational Feasibility</span>
+                         <span class="accordion-icon transform transition-transform duration-300">&#9662;</span>
+                    </button>
+                    <div class="accordion-content max-h-0 overflow-hidden transition-all duration-500 ease-in-out">
+                        <div class="p-5 border-t border-slate-200">
+                           <p class="text-slate-600">Success hinges on the robot's robustness in real-world outdoor environments. This demands effective weatherproofing of all electronics and mechanical systems. The autonomy level requires sophisticated navigation to track faint ant trails while avoiding obstacles. While the mothership minimizes manual refills, regular maintenance will still be critical. Scalability to a multi-robot system is possible but depends on mothership capacity.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-item bg-white rounded-lg shadow">
+                    <button class="accordion-header w-full flex justify-between items-center p-5 text-left font-semibold text-slate-800">
+                        <span>Regulatory & Safety Considerations</span>
+                         <span class="accordion-icon transform transition-transform duration-300">&#9662;</span>
+                    </button>
+                    <div class="accordion-content max-h-0 overflow-hidden transition-all duration-500 ease-in-out">
+                        <div class="p-5 border-t border-slate-200">
+                           <p class="text-slate-600">Operating an autonomous robot dispensing materials requires addressing key safety issues. The use of killer bait, even if targeted, may be subject to pesticide regulations. The salt gun must be calibrated to be a deterrent without posing a kinetic hazard to non-targets. Robust obstacle avoidance and failsafe systems are mandatory for safe autonomous operation in any environment shared with humans or animals.</p>
+                        </div>
+                    </div>
+                </div>
+                 <div class="accordion-item bg-white rounded-lg shadow">
+                    <button class="accordion-header w-full flex justify-between items-center p-5 text-left font-semibold text-slate-800">
+                        <span>Key Recommendations</span>
+                         <span class="accordion-icon transform transition-transform duration-300">&#9662;</span>
+                    </button>
+                    <div class="accordion-content max-h-0 overflow-hidden transition-all duration-500 ease-in-out">
+                        <div class="p-5 border-t border-slate-200">
+                           <ul class="list-disc list-inside space-y-2 text-slate-600">
+                                <li>Prioritize modular, iterative prototyping to manage complexity.</li>
+                                <li>Invest heavily in robust vision system development and training data.</li>
+                                <li>Engineer the chassis expansion for durability using CAD for stress analysis.</li>
+                                <li>Design all systems for environmental robustness (weatherproofing).</li>
+                                <li>Focus on high-accuracy automated docking and charging for true autonomy.</li>
+                                <li>Address regulatory and safety concerns proactively from the start of development.</li>
+                           </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+    
+    <div id="modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title" class="text-2xl font-bold mb-4"></h3>
+            <p id="modal-text" class="text-slate-600"></p>
+            <button id="modal-close" class="mt-6 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Close</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const modalData = {
+                pi: {
+                    title: 'Raspberry Pi Core Controller',
+                    text: 'The Raspberry Pi 5 serves as the brain, offering a cost-effective yet powerful platform for processing. Its GPIO pins control motors and dispensers, while its processing power handles navigation and vision. A distributed system using multiple Pis (e.g., a Pi Pico for real-time motor control) is recommended to manage computational load effectively.'
+                },
+                opencv: {
+                    title: 'OpenCV for Vision',
+                    text: 'OpenCV is the key software library for ant detection and trail tracking. The primary challenge is accurately identifying small, fast-moving ants against a noisy background. This will involve advanced techniques like background subtraction and contour detection, potentially accelerated by a dedicated AI NPU on the Raspberry Pi 5.'
+                },
+                sensors: {
+                    title: 'Electro-Optical Sensors',
+                    text: 'In addition to the main camera, cheap COTS sensors like Infrared (IR) obstacle detectors and reflectance sensors provide crucial environmental awareness. They offer redundant, short-range collision avoidance and can help in line-following or detecting ground texture changes, complementing the camera-based system.'
+                },
+                chassis: {
+                    title: 'Expanded Traxxas Frame',
+                    text: 'The foundation is a robust Traxxas R/C truck chassis, chosen for its durability and parts availability. This COTS frame must be custom expanded using aluminum plates to accommodate the three payload systems, extra batteries, and control hardware, while maintaining structural integrity and balance.'
+                },
+                motors: {
+                    title: 'Motors & ESC Integration',
+                    text: 'The truck\'s powerful motors are managed by an Electronic Speed Controller (ESC). To ensure precise control from the Raspberry Pi, a hardware PWM controller (like the PCA9685) is used. This offloads timing-critical signals from the Pi, resulting in smoother and more reliable movement.'
+                },
+                power: {
+                    title: 'Onboard Power System',
+                    text: 'High-capacity LiPo battery packs, commonly used in R/C, provide power. The design suggests doubling up packs for extended operational time. A Battery Management System (BMS) is crucial for safety, monitoring battery health, and preventing over/under charging.'
+                },
+                bait: {
+                    title: 'Killer Bait Dispenser',
+                    text: 'This system must precisely deploy granular bait. A miniature auger feeder or a custom servo-actuated wheel mechanism are viable COTS-based options. The goal is controlled, repeatable dispensing to place bait accurately along ant trails without jamming.'
+                },
+                repellent: {
+                    title: 'Repellent Sprayer (Rosemary Oil)',
+                    text: 'A mini peristaltic pump is the ideal COTS solution for dispensing the rosemary oil repellent. This type of pump provides accurate, controllable flow and ensures the liquid only touches the tubing, preventing corrosion and simplifying maintenance. It will lay a continuous protective line.'
+                },
+                salt: {
+                    title: 'Salt Gun Deterrent',
+                    text: 'A custom-built kinetic deterrent for last-resort use. Inspired by devices like the Bug-A-Salt, it will use a spring-loaded or solenoid-actuated plunger to fire a small amount of salt. An auger or vibratory feeder will load the salt into the chamber. The mechanism requires careful calibration for effectiveness and safety.'
+                },
+                deployment: {
+                    title: 'Deployment/Retrieval System',
+                    text: 'This system, likely a ramp or platform actuated by COTS linear actuators, allows the robot to autonomously drive on and off the mothership trailer. It is a key component for enabling fully automated missions without human intervention.'
+                },
+                recharge: {
+                    title: 'Automated Recharging',
+                    text: 'For true autonomy, the robot must recharge itself. This is achieved via a docking station on the mothership using either wireless (inductive) charging or a more robust, cost-effective solution like magnetic pogo-pin connectors. The robot uses vision (e.g., ArUco markers) to align itself for docking.'
+                },
+                refill_granular: {
+                    title: 'Salt & Bait Hoppers',
+                    text: 'The mothership holds bulk supplies of granular materials in large hoppers. Automated refilling is handled by COTS auger feeders that transfer a measured amount of salt or bait from the mothership\'s hopper into the robot\'s smaller onboard reservoir upon docking.'
+                },
+                refill_liquid: {
+                    title: 'Repellent Reservoir',
+                    text: 'A large tank on the mothership stores the rosemary oil repellent. A 12V DC transfer pump moves the liquid from the bulk tank to the robot\'s onboard tank via a hose with a quick-disconnect fitting, triggered automatically when the robot docks and signals it is low on repellent.'
+                }
+            };
+            
+            const costChartCtx = document.getElementById('costChart').getContext('2d');
+            let costChart;
+            const prototypeCostData = {
+                labels: ['COTS Components ($2.6k-$6k)', 'Fabrication Materials ($200-$550)', 'Sweat Equity Labor (High)'],
+                datasets: [{
+                    data: [4325, 375, 15000],
+                    backgroundColor: ['#3b82f6', '#60a5fa', '#93c5fd'],
+                }]
+            };
+            const unitCostData = {
+                labels: ['COTS Components ($0.9k-$1.9k)', 'Custom Parts ($170-$500)', 'Assembly Labor ($0.6k-$2k)'],
+                datasets: [{
+                    data: [1400, 335, 1300],
+                    backgroundColor: ['#16a34a', '#4ade80', '#86efac'],
+                }]
+            };
+
+            function createOrUpdateCostChart(data, description) {
+                document.getElementById('cost-desc').textContent = description;
+                if (costChart) {
+                    costChart.data = data;
+                    costChart.update();
+                } else {
+                    costChart = new Chart(costChartCtx, {
+                        type: 'doughnut',
+                        data: data,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            if (context.parsed !== null) {
+                                                label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed);
+                                            }
+                                            return label;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+            
+            createOrUpdateCostChart(prototypeCostData, 'Estimated costs for a single functional prototype, using mid-range component price estimates.');
+
+            document.getElementById('proto-cost-btn').addEventListener('click', () => {
+                createOrUpdateCostChart(prototypeCostData, 'Estimated costs for a single functional prototype, using mid-range component price estimates.');
+                document.getElementById('proto-cost-btn').classList.add('bg-blue-600', 'text-white');
+                document.getElementById('proto-cost-btn').classList.remove('bg-white', 'text-blue-600');
+                document.getElementById('unit-cost-btn').classList.add('bg-white', 'text-blue-600');
+                document.getElementById('unit-cost-btn').classList.remove('bg-blue-600', 'text-white');
+            });
+
+            document.getElementById('unit-cost-btn').addEventListener('click', () => {
+                createOrUpdateCostChart(unitCostData, 'Estimated per-unit cost for a small production run (10-50 units).');
+                document.getElementById('unit-cost-btn').classList.add('bg-blue-600', 'text-white');
+                document.getElementById('unit-cost-btn').classList.remove('bg-white', 'text-blue-600');
+                document.getElementById('proto-cost-btn').classList.add('bg-white', 'text-blue-600');
+                document.getElementById('proto-cost-btn').classList.remove('bg-blue-600', 'text-white');
+            });
+
+
+            const timelineChartCtx = document.getElementById('timelineChart').getContext('2d');
+            const timelineData = {
+                labels: ['Phase 1: Mobility & Control', 'Phase 2: Payload Integration', 'Phase 3: Automation & Mothership'],
+                datasets: [{
+                    label: 'Start Month',
+                    data: [1, 5, 10],
+                    backgroundColor: 'rgba(0,0,0,0)',
+                }, {
+                    label: 'Duration (Months)',
+                    data: [4, 5, 8],
+                     backgroundColor: ['#3b82f6', '#16a34a', '#9f1239'],
+                }]
+            };
+            new Chart(timelineChartCtx, {
+                type: 'bar',
+                data: timelineData,
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Months'
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                             callbacks: {
+                                label: function(context) {
+                                    if (context.datasetIndex === 1) {
+                                        return ` Duration: ${context.raw} months`;
+                                    }
+                                    return null;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalText = document.getElementById('modal-text');
+            const modalClose = document.getElementById('modal-close');
+            
+            document.querySelectorAll('.interactive-diagram-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const id = item.dataset.id;
+                    if (modalData[id]) {
+                        modalTitle.textContent = modalData[id].title;
+                        modalText.textContent = modalData[id].text;
+                        modal.classList.add('visible');
+                    }
+                });
+            });
+
+            modalClose.addEventListener('click', () => modal.classList.remove('visible'));
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('visible');
+                }
+            });
+
+            const accordions = document.querySelectorAll('.accordion-item');
+            accordions.forEach(item => {
+                const header = item.querySelector('.accordion-header');
+                header.addEventListener('click', () => {
+                    const content = item.querySelector('.accordion-content');
+                    const icon = item.querySelector('.accordion-icon');
+
+                    if(content.style.maxHeight) {
+                        content.style.maxHeight = null;
+                        icon.style.transform = 'rotate(0deg)';
+                    } else {
+                        accordions.forEach(otherItem => {
+                             otherItem.querySelector('.accordion-content').style.maxHeight = null;
+                             otherItem.querySelector('.accordion-icon').style.transform = 'rotate(0deg)';
+                        })
+                        content.style.maxHeight = content.scrollHeight + 'px';
+                        icon.style.transform = 'rotate(180deg)';
+                    }
+                });
+            });
+
+            const navLinks = document.querySelectorAll('.nav-link');
+            const sections = document.querySelectorAll('main section');
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        navLinks.forEach(link => {
+                            link.classList.toggle('active', link.getAttribute('href').substring(1) === entry.target.id);
+                        });
+                    }
+                });
+            }, { rootMargin: '-20% 0px -80% 0px', threshold: 0 });
+
+            sections.forEach(section => observer.observe(section));
+            
+            document.getElementById('mobile-nav').addEventListener('change', function() {
+                window.location.hash = this.value;
+            });
+        });
+    </script>
+</body>
+</html>
